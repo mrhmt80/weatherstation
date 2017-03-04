@@ -1,0 +1,26 @@
+{
+    "env": {
+        "node": true,
+        "es6": true
+    },
+    "extends": "standard",
+    "plugins": [
+        "node"
+    ],
+    "rules": {
+        "prefer-arrow-callback": "error",
+        "prefer-const": "error",
+        "no-var": "error",
+        "no-undef": "error",
+        "no-param-reassign": "error",
+        "node/no-missing-import": "error",
+        "node/no-missing-require": "error",
+        "node/no-unpublished-import": "error",
+        "node/no-unpublished-require": "error",
+        "node/no-unsupported-features": ["error", {
+            "version": 7
+        }],
+        "node/process-exit-as-throw": "error",
+        "node/shebang": "error"
+    }
+}
