@@ -1,201 +1,83 @@
-const async = require('async')
-const SensorTag = require('sensortag')
-const _ = require('underscore')
-const mongoose = require('mongoose')
 const express = require('express')
-
-const TICK_TIME = 5000
-
-const disableNotNeeded = (sensorTag, cb) => {
-  async.series([
-    function (callback) {
-      console.log('disableBarometricPressure')
-      sensorTag.disableBarometricPressure(callback)
-    },
-    function (callback) {
-      console.log('disableGyroscope')
-      sensorTag.disableGyroscope(callback)
-    },
-    function (callback) {
-      console.log('disableAccelerometer')
-      sensorTag.disableAccelerometer(callback)
-    },
-    function (callback) {
-      console.log('disableMagnetometer')
-      sensorTag.disableMagnetometer(callback)
-    }
-  ], cb)
-}
-
-const enableNeeded = (sensorTag, cb) => {
-  async.series([
-    function (callback) {
-      console.log('enableBarometricPressure')
-      sensorTag.enableBarometricPressure(callback)
-    },
-    function (callback) {
-      console.log('enableHumidity')
-      sensorTag.enableHumidity(callback)
-    },
-    function (callback) {
-      console.log('enableIrTemperature')
-      sensorTag.enableIrTemperature(callback)
-    }
-  ], cb)
-}
-
-const readThings = (sensorTag, cb) => {
-  let latest
-
-  const prepareNextExecution = (cb) => {
-    const now = Date.now()
-    if (!latest) {
-      latest = Date.now()
-      setImmediate(cb)
-    } else if (now - latest > TICK_TIME) {
-      latest = now
-      setImmediate(cb)
-    } else {
-      console.log('next_tick_ms=' + (latest + TICK_TIME - now))
-      const ms = latest + TICK_TIME - now
-      setTimeout(() => {
-        latest = Date.now()
-        setImmediate(cb)
-      }, ms)
-    }
-  }
-
-  async.forever(next => {
-    async.series({
-      prepareNextExecution,
-      ir: function (callback) {
-        sensorTag.readIrTemperature((error, objectTemperature, ambientTemperature) => {
-          setImmediate(callback, error, {objectTemperature, ambientTemperature})
-        })
-      },
-      noop1: function (callback) {
-        setTimeout(callback, 100)
-      },
-      hum: function (callback) {
-        sensorTag.readHumidity((error, temperature, humidity) => {
-          setImmediate(callback, error, {temperature, humidity})
-        })
-      },
-      noop2: function (callback) {
-        setTimeout(callback, 100)
-      },
-      bar: function (callback) {
-        sensorTag.readBarometricPressure((error, pressure) => {
-          setImmediate(callback, error, {pressure})
-        })
-      }
-    }, (__, results) => {
-      insertIntoMongo(_.pick(results, 'ir', 'hum', 'bar'))
-      next()
-    })
-  })
-}
-
-SensorTag.discover((sensorTag) => {
-  console.log('discovered: ' + sensorTag)
-
-  sensorTag.on('disconnect', () => {
-    console.log('disconnected!')
-    process.exit(0)
-  })
-
-  async.series([
-    cb => { sensorTag.connectAndSetUp(cb) },
-    async.apply(disableNotNeeded, sensorTag),
-    cb => { setTimeout(cb, 1000) },
-    async.apply(enableNeeded, sensorTag),
-    cb => { setTimeout(cb, 1000) },
-    async.apply(readThings, sensorTag)
-  ], (err) => {
-    console.error(err)
-  })
-})
-
-mongoose.connect('mongodb://localhost/rubicon')
-mongoose.set('debug', true)
-const Medition = mongoose.model('Medition',
-  {
-    c_at: {
-      type: Date,
-      default: Date.now
-    },
-    objTemp: Number,
-    ambTemp: Number,
-    temp: Number,
-    hum: Number,
-    press: Number
-  }
-)
-
-const insertIntoMongo = function insertIntoMongo (data) {
-  const obj = {
-    objTemp: data.ir.objectTemperature,
-    ambTemp: data.ir.ambientTemperature,
-    temp: data.hum.temperature,
-    hum: data.hum.humidity,
-    press: data.bar.pressure
-  }
-  const med = new Medition(obj)
-  med.save((err) => {
-    if (err) {
-      console.log(err)
-    } else {
-      console.log('inserted')
-    }
-  })
-}
+const helpers = require('./helpers')
+const moment = require('moment')
+moment.locale('es')
 
 const app = express()
 app.set('view engine', 'pug')
+app.use(helpers.addLibraries)
+
+const Medition = require('./schemas').model('Medition')
 app.get('/', (req, res) => {
-  // const datasets =
-  //   [
-  //     {
-  //       label: 'Humedad',
-  //       data: [{x: '2017-03-04T01:14:54.905Z', y: 65}, {x: '2017-03-04T01:17:54.905Z', y: 100}]
-  //     }
-  //   ]
-  Medition.find({}, (err, all) => {
-    const objTemp = []
-    const ambTemp = []
-    const temp = []
-    const hum = []
-    const press = []
+  let query = {}
+  query = {
+    c_at: {
+      $gt: moment().add(-12, 'h')
+    }
+  }
+
+  Medition.find(query).sort({ c_at: 1 }).exec((err, all) => {
+    if (err) {
+      res.status(500)
+      res.send(err)
+      return
+    }
+    // const objTemp = []
+    // const ambTemp = []
+    const tempArr = []
+    const humArr = []
+    const pressArr = []
+    const tempMeanArr = []
+    let minTemp = 100
+    let maxTemp = -100
+    let minTempWhen, maxTempWhen
     all.forEach(m => {
-      objTemp.push({ x: m.c_at, y: m.objTemp })
-      ambTemp.push({ x: m.c_at, y: m.ambTemp })
-      temp.push({ x: m.c_at, y: m.temp })
-      hum.push({ x: m.c_at, y: m.hum })
-      press.push({ x: m.c_at, y: m.press })
+      const temp = m.temp.toFixed(2)
+      const hum = m.hum.toFixed(2)
+      const press = m.press.toFixed(1)
+      const rounded = moment(m.c_at).startOf('minute')
+      // objTemp.push({ x: rounded, y: m.objTemp })
+      // ambTemp.push({ x: rounded, y: m.ambTemp })
+      tempMeanArr.push(m.temp)
+      tempArr.push({ x: rounded, y: temp })
+      if (m.temp < minTemp) {
+        minTemp = temp
+        minTempWhen = rounded
+      }
+      if (m.temp > maxTemp) {
+        maxTemp = temp
+        maxTempWhen = rounded
+      }
+      humArr.push({ x: rounded, y: hum })
+      pressArr.push({ x: rounded, y: press })
     })
     const datasets = [
+      {
+        label: 'Humedad',
+        data: humArr,
+        yAxisID: 'humidity'
+      },
       // {
-      //   label: 'Humedad',
-      //   data: hum
+      //   label: 'Temperatura ambiental',
+      //   data: ambTemp
       // },
-      {
-        label: 'Temperatura ambiental',
-        data: ambTemp
-      },
-      {
-        label: 'Temperatura objeto',
-        data: objTemp
-      },
+      // {
+      //   label: 'Temperatura objeto',
+      //   data: objTemp
+      // },
       // {
       //   label: 'Presión',
-      //   data: press
+      //   data: pressArr,
+      //   yAxisID: 'pressure'
       // },
       {
         label: 'Temperatura',
-        data: temp
+        data: tempArr,
+        yAxisID: 'temperature'
       }
     ]
-    res.render('index', { title: 'Evolución', datasets })
+    const meanTemp = (tempMeanArr.reduce((a, b) => a + b, 0) / tempMeanArr.length).toFixed(2)
+    res.render('index', { title: 'Evolución', datasets, minTemp, maxTemp, minTempWhen, maxTempWhen, meanTemp })
   })
 })
 

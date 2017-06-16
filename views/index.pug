@@ -1,23 +1,54 @@
 html
     head
         title= title
-        script(src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.bundle.min.js")
+        script(src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.6.0/Chart.bundle.min.js")
+        style
+          include style.css
     body
-        //- div(style="height: 400px; width: 300px")
-        canvas#myChart(width='100px', height='100px')
+        p#minTemp Temp Mínima #{minTemp}ºC (#{moment(minTempWhen).format("dddd, YYYY/MM/DD, HH:mm")})
+        p#maxTemp Temp Máxima #{maxTemp}ºC (#{moment(maxTempWhen).format("dddd, YYYY/MM/DD, HH:mm")})
+        p#meanTemp Temp Media #{meanTemp}ºC
+        canvas#myChart
         script.
             var ctx = document.getElementById("myChart");
             var myChart = new Chart(ctx, {
               type: 'line',
+              title: 'Temperatura',
               data: {
                 datasets: !{JSON.stringify(datasets)}
               },
               options: {
                 scales: {
-                    xAxes: [{
-                        type: 'time',
-
-                    }]
+                  xAxes: [{
+                    type: 'time',
+                    time: {
+                      round: 'minute',
+                      unit: 'minute',
+                      tooltipFormat: "dddd, YYYY/MM/DD, HH:mm",
+                      unitStepSize: 30,
+                      displayFormats: {
+                        minute: 'HH:mm'
+                      }
+                    }
+                  }],
+                  yAxes: [{
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    id: 'temperature'
+                  }, {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    id: 'humidity'
+                  }]
+                  //- },
+                  //- {
+                  //-   type: 'linear',
+                  //-   display: true,
+                  //-   position: 'right',
+                  //-   id: 'pressure'
+                  //- }]
                 }
               }
             });
