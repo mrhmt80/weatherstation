@@ -5,6 +5,9 @@
   "repository": {},
   "author": "Guillermo López <willyaranda>",
   "license": "MIT",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "async": "^2.4.1",
     "express": "^4.15.3",
