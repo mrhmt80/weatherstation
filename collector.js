@@ -4,7 +4,8 @@ const _ = require('underscore')
 const Medition = require('./schemas').model('Medition')
 
 const TICK_TIME = 60 * 1000 // 60 secs between each medition
-const TIMEOUT = 5 * 1000 // 5 secs
+const SHORT_TIMEOUT = 1000
+const TIMEOUT = 5 * SHORT_TIMEOUT // 5 secs
 
 const disableNotNeeded = (sensorTag, cb) => {
   async.series([
@@ -12,14 +13,17 @@ const disableNotNeeded = (sensorTag, cb) => {
       console.log('disableBarometricPressure')
       sensorTag.disableBarometricPressure(callback)
     },
+    cb => { setTimeout(cb, SHORT_TIMEOUT) },
     function (callback) {
       console.log('disableGyroscope')
       sensorTag.disableGyroscope(callback)
     },
+    cb => { setTimeout(cb, SHORT_TIMEOUT) },
     function (callback) {
       console.log('disableAccelerometer')
       sensorTag.disableAccelerometer(callback)
     },
+    cb => { setTimeout(cb, SHORT_TIMEOUT) },
     function (callback) {
       console.log('disableMagnetometer')
       sensorTag.disableMagnetometer(callback)
@@ -33,10 +37,12 @@ const enableNeeded = (sensorTag, cb) => {
       console.log('enableBarometricPressure')
       sensorTag.enableBarometricPressure(callback)
     },
+    cb => { setTimeout(cb, SHORT_TIMEOUT) },
     function (callback) {
       console.log('enableHumidity')
       sensorTag.enableHumidity(callback)
     },
+    cb => { setTimeout(cb, SHORT_TIMEOUT) },
     function (callback) {
       console.log('enableIrTemperature')
       sensorTag.enableIrTemperature(callback)
