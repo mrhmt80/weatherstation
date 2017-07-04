@@ -3,7 +3,8 @@ const SensorTag = require('sensortag')
 const _ = require('underscore')
 const Medition = require('./schemas').model('Medition')
 
-const TICK_TIME = 60000
+const TICK_TIME = 60 * 1000 // 60 secs between each medition
+const TIMEOUT = 5 * 1000 // 5 secs
 
 const disableNotNeeded = (sensorTag, cb) => {
   async.series([
@@ -106,9 +107,9 @@ SensorTag.discover((sensorTag) => {
   async.series([
     cb => { sensorTag.connectAndSetUp(cb) },
     async.apply(disableNotNeeded, sensorTag),
-    cb => { setTimeout(cb, 1000) },
+    cb => { setTimeout(cb, TIMEOUT) },
     async.apply(enableNeeded, sensorTag),
-    cb => { setTimeout(cb, 1000) },
+    cb => { setTimeout(cb, TIMEOUT) },
     async.apply(readThings, sensorTag)
   ], (err) => {
     console.error(err)
