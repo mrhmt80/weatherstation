@@ -3,8 +3,8 @@ const SensorTag = require('sensortag')
 const _ = require('underscore')
 const Medition = require('./schemas').model('Medition')
 
-const TICK_TIME = 60 * 1000 // 60 secs between each medition
-const SHORT_TIMEOUT = 1000
+const TICK_TIME = process.env['TICK_TIME'] || 60 * 1000 // 60 secs between each medition
+const SHORT_TIMEOUT = process.env['SHORT_TIMEOUT'] || 1000
 const TIMEOUT = 5 * SHORT_TIMEOUT // 5 secs
 
 const disableNotNeeded = (sensorTag, cb) => {
@@ -123,6 +123,12 @@ SensorTag.discover((sensorTag) => {
 })
 
 const insertIntoMongo = function insertIntoMongo (data) {
+  let temp = data.hum.temperature
+  // Fix for sometimes a temperature of -40
+  if (data.hum.temperature === -40) {
+    temp = data.ir.ambientTemperature
+  }
+
   const obj = {
     objTemp: data.ir.objectTemperature,
     ambTemp: data.ir.ambientTemperature,
