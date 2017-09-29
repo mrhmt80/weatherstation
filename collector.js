@@ -132,7 +132,7 @@ const insertIntoMongo = function insertIntoMongo (data) {
   const obj = {
     objTemp: data.ir.objectTemperature,
     ambTemp: data.ir.ambientTemperature,
-    temp: data.hum.temperature,
+    temp,
     hum: data.hum.humidity,
     press: data.bar.pressure
   }
